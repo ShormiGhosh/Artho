@@ -16,14 +16,32 @@ interface RequestRow {
   reason: string | null;
   status: string;
   related_transfer_id: string | null;
+  approved_at: Date | null;
+  rejected_at: Date | null;
+  cancelled_at: Date | null;
+  rejection_reason: string | null;
   created_at: Date;
   updated_at: Date;
   expires_at: Date;
   requester_name?: string;
   requestee_name?: string;
+  related_transfer_reference?: string | null;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const SELECT_REQUEST = `
+  SELECT mr.*, u1.full_name AS requester_name, u2.full_name AS requestee_name,
+         t.reference AS related_transfer_reference
+    FROM money_requests mr
+    JOIN users u1 ON u1.id = mr.requester_id
+    JOIN users u2 ON u2.id = mr.requestee_id
+    LEFT JOIN transfers t ON t.id = mr.related_transfer_id
+`;
+
+function resolvedAt(row: RequestRow): Date | null {
+  return row.approved_at ?? row.rejected_at ?? row.cancelled_at ?? null;
+}
 
 function shape(row: RequestRow, viewerId: string) {
   const direction = row.requester_id === viewerId ? 'SENT' : 'RECEIVED';
@@ -42,27 +60,36 @@ function shape(row: RequestRow, viewerId: string) {
     amount_display: formatBdt(row.amount_paisa),
     reason: row.reason,
     related_transfer_id: row.related_transfer_id,
+    related_transfer_reference: row.related_transfer_reference ?? null,
+    approved_at: row.approved_at,
+    rejected_at: row.rejected_at,
+    cancelled_at: row.cancelled_at,
+    resolved_at: resolvedAt(row),
+    rejection_reason: row.rejection_reason,
     created_at: row.created_at,
     updated_at: row.updated_at,
     expires_at: row.expires_at,
   };
 }
 
+async function fetchRequest(idOrReference: string): Promise<RequestRow | null> {
+  const isUuid = UUID_RE.test(idOrReference);
+  // References are stored upper-case; accept any casing from callers.
+  const lookup = isUuid ? idOrReference : idOrReference.toUpperCase();
+  const { rows } = await pool.query<RequestRow>(
+    `${SELECT_REQUEST} WHERE ${isUuid ? 'mr.id = $1' : 'mr.reference = $1'}`,
+    [lookup]
+  );
+  return rows[0] ?? null;
+}
+
+/** Load a request and require `actorId` to be on a specific side of it. */
 async function loadForActor(
   idOrReference: string,
   column: 'requester_id' | 'requestee_id',
   actorId: string
 ): Promise<RequestRow> {
-  const isUuid = UUID_RE.test(idOrReference);
-  const { rows } = await pool.query<RequestRow>(
-    `SELECT mr.*, u1.full_name AS requester_name, u2.full_name AS requestee_name
-       FROM money_requests mr
-       JOIN users u1 ON u1.id = mr.requester_id
-       JOIN users u2 ON u2.id = mr.requestee_id
-      WHERE ${isUuid ? 'mr.id = $1' : 'mr.reference = $1'}`,
-    [idOrReference]
-  );
-  const row = rows[0];
+  const row = await fetchRequest(idOrReference);
   if (!row) throw Errors.requestNotFound();
   if (row[column] !== actorId) throw Errors.forbidden();
   return row;
@@ -133,6 +160,16 @@ export const RequestService = {
     return shape(row, input.requesterId);
   },
 
+  /** Full detail for either party to a request. 404 if unknown, 403 if not a party. */
+  async getForUser(idOrReference: string, userId: string) {
+    const row = await fetchRequest(idOrReference);
+    if (!row) throw Errors.requestNotFound();
+    if (row.requester_id !== userId && row.requestee_id !== userId) {
+      throw Errors.forbidden();
+    }
+    return shape(row, userId);
+  },
+
   async approve(idOrReference: string, requesteeId: string) {
     const row = await loadForActor(idOrReference, 'requestee_id', requesteeId);
     if (row.status !== 'PENDING') throw Errors.requestNotPending();
@@ -149,16 +186,25 @@ export const RequestService = {
 
     const updated = await pool.query<RequestRow>(
       `UPDATE money_requests
-          SET status = 'APPROVED', related_transfer_id = $2, updated_at = NOW()
+          SET status = 'APPROVED', related_transfer_id = $2,
+              approved_at = NOW(), updated_at = NOW()
         WHERE id = $1 AND status = 'PENDING'
         RETURNING *`,
       [row.id, transfer.transfer_id]
     );
     // If another concurrent approve already flipped it, that's fine — money still
     // moved exactly once thanks to the deterministic idempotency key.
-    const finalRow = updated.rows[0] ?? { ...row, status: 'APPROVED', related_transfer_id: transfer.transfer_id };
+    const finalRow: RequestRow =
+      updated.rows[0] ??
+      ({
+        ...row,
+        status: 'APPROVED',
+        related_transfer_id: transfer.transfer_id,
+        approved_at: new Date(),
+      } as RequestRow);
     finalRow.requester_name = row.requester_name;
     finalRow.requestee_name = row.requestee_name;
+    finalRow.related_transfer_reference = transfer.reference;
 
     NotificationService.emit({
       userId: row.requester_id,
@@ -172,14 +218,19 @@ export const RequestService = {
     return { request: shape(finalRow, requesteeId), transfer };
   },
 
-  async reject(idOrReference: string, requesteeId: string) {
+  async reject(idOrReference: string, requesteeId: string, reason?: string | null) {
+    if (reason && reason.length > MAX_REASON_LENGTH) {
+      throw Errors.invalidRequest(`Reason must be at most ${MAX_REASON_LENGTH} characters`);
+    }
     const row = await loadForActor(idOrReference, 'requestee_id', requesteeId);
     if (row.status !== 'PENDING') throw Errors.requestNotPending();
 
     const updated = await pool.query<RequestRow>(
-      `UPDATE money_requests SET status = 'REJECTED', updated_at = NOW()
-        WHERE id = $1 AND status = 'PENDING' RETURNING *`,
-      [row.id]
+      `UPDATE money_requests
+          SET status = 'REJECTED', rejected_at = NOW(), rejection_reason = $2, updated_at = NOW()
+        WHERE id = $1 AND status = 'PENDING'
+        RETURNING *`,
+      [row.id, reason ?? null]
     );
     if (updated.rowCount === 0) throw Errors.requestNotPending();
 
@@ -187,11 +238,15 @@ export const RequestService = {
       userId: row.requester_id,
       type: 'REQUEST_REJECTED',
       title: 'Request rejected',
-      message: `${row.requestee_name} rejected your ${formatBdt(row.amount_paisa)} request`,
+      message: `${row.requestee_name} rejected your ${formatBdt(row.amount_paisa)} request${
+        reason ? ` — ${reason}` : ''
+      }`,
       relatedRequestId: row.id,
     });
 
-    const finalRow = { ...row, status: 'REJECTED' };
+    const finalRow = updated.rows[0];
+    finalRow.requester_name = row.requester_name;
+    finalRow.requestee_name = row.requestee_name;
     return shape(finalRow, requesteeId);
   },
 
@@ -199,9 +254,11 @@ export const RequestService = {
     const row = await loadForActor(idOrReference, 'requester_id', requesterId);
     if (row.status !== 'PENDING') throw Errors.requestNotPending();
 
-    const updated = await pool.query(
-      `UPDATE money_requests SET status = 'CANCELLED', updated_at = NOW()
-        WHERE id = $1 AND status = 'PENDING' RETURNING id`,
+    const updated = await pool.query<RequestRow>(
+      `UPDATE money_requests
+          SET status = 'CANCELLED', cancelled_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND status = 'PENDING'
+        RETURNING *`,
       [row.id]
     );
     if (updated.rowCount === 0) throw Errors.requestNotPending();
@@ -214,7 +271,10 @@ export const RequestService = {
       relatedRequestId: row.id,
     });
 
-    return shape({ ...row, status: 'CANCELLED' }, requesterId);
+    const finalRow = updated.rows[0];
+    finalRow.requester_name = row.requester_name;
+    finalRow.requestee_name = row.requestee_name;
+    return shape(finalRow, requesterId);
   },
 
   async list(
@@ -231,13 +291,7 @@ export const RequestService = {
     }
 
     const { rows } = await pool.query<RequestRow>(
-      `SELECT mr.*, u1.full_name AS requester_name, u2.full_name AS requestee_name
-         FROM money_requests mr
-         JOIN users u1 ON u1.id = mr.requester_id
-         JOIN users u2 ON u2.id = mr.requestee_id
-        WHERE ${filters.join(' AND ')}
-        ORDER BY mr.created_at DESC
-        LIMIT 200`,
+      `${SELECT_REQUEST} WHERE ${filters.join(' AND ')} ORDER BY mr.created_at DESC LIMIT 200`,
       params
     );
 

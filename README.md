@@ -74,10 +74,12 @@ GET    /api/transfers?page&limit&status&direction
 GET    /api/transfers/:idOrReference
 POST   /api/money-requests
 GET    /api/money-requests?direction&status
+GET    /api/money-requests/:idOrReference          (detail for either party)
 POST   /api/money-requests/:id/approve   (Idempotency-Key required)
-POST   /api/money-requests/:id/reject
+POST   /api/money-requests/:id/reject    ({ reason? })
 DELETE /api/money-requests/:id
-GET    /api/transactions?kind&status&from&to   (unified feed)
+GET    /api/transactions?kind&status&from&to   (unified feed, date range)
+GET    /api/transactions/lookup?ref=            (resolves TXN- or REQ- or UUID)
 GET    /api/transactions/ledger
 GET    /api/notifications            POST /api/notifications/:id/read
 GET    /api/health   GET /api/health/invariants
@@ -95,7 +97,8 @@ backend/src
   routes/       thin wiring per domain
 frontend/src
   pages/        Login, Register, Dashboard, SendMoney (4-step), RequestMoney,
-                Requests, History, TransactionDetails, Profile
+                Requests, RequestDetails, History (filters + date range + ID lookup),
+                TransactionDetails, Profile
   context/      AuthContext
   lib/          api (axios + idempotency key), format (paisa-safe display)
 ```

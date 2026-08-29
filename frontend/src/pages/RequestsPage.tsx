@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api, errorMessage, newIdempotencyKey } from '../lib/api';
 import { formatBdt, fullTime } from '../lib/format';
@@ -88,8 +89,8 @@ export default function RequestsPage() {
           {list.map((r) => (
             <div key={r.request_id} className="card p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">
+                <Link to={`/requests/${r.reference}`} className="group">
+                  <p className="text-sm font-semibold text-slate-800 group-hover:text-brand-700">
                     {tab === 'received'
                       ? `${r.counterparty_name} requested`
                       : `You requested from ${r.counterparty_name}`}
@@ -99,7 +100,7 @@ export default function RequestsPage() {
                   <p className="mt-1 text-xs text-slate-400">
                     {fullTime(r.created_at)} · {r.reference}
                   </p>
-                </div>
+                </Link>
                 <StatusBadge status={r.status} />
               </div>
 

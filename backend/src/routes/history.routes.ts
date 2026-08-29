@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { historyQuerySchema } from '../middleware/schemas';
+import { historyQuerySchema, lookupQuerySchema } from '../middleware/schemas';
 import { HistoryService } from '../services/history.service';
 import { TransferService } from '../services/transfer.service';
+import { RequestService } from '../services/request.service';
+import { AppError } from '../utils/errors';
 import { asyncHandler, ok } from '../utils/asyncHandler';
 
 const router = Router();
@@ -40,6 +42,47 @@ router.get(
         limit: q.limit ? Number(q.limit) : undefined,
       })
     );
+  })
+);
+
+/**
+ * Unified lookup by reference or UUID. Resolves a transfer (`TXN-…`) or a money
+ * request (`REQ-…`); for a bare UUID it tries a transfer first, then a request.
+ * Only a party to the record can see it.
+ */
+router.get(
+  '/lookup',
+  requireAuth,
+  validate(lookupQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const ref = String((req.query as any).ref).trim();
+    const userId = req.userId!;
+    const upper = ref.toUpperCase();
+
+    const asTransfer = async () => ({
+      kind: 'TRANSFER' as const,
+      data: await TransferService.getForUser(ref, userId),
+    });
+    const asRequest = async () => ({
+      kind: 'REQUEST' as const,
+      data: await RequestService.getForUser(ref, userId),
+    });
+
+    let result;
+    if (upper.startsWith('TXN-')) result = await asTransfer();
+    else if (upper.startsWith('REQ-')) result = await asRequest();
+    else {
+      try {
+        result = await asTransfer();
+      } catch (err) {
+        if (err instanceof AppError && err.code === 'TRANSFER_NOT_FOUND') {
+          result = await asRequest();
+        } else {
+          throw err;
+        }
+      }
+    }
+    ok(res, result);
   })
 );
 

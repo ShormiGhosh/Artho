@@ -34,6 +34,14 @@ export const moneyRequestSchema = z.object({
   reason: z.string().max(200).optional().nullable(),
 });
 
+export const rejectRequestSchema = z.object({
+  reason: z.string().max(200).optional().nullable(),
+});
+
+export const lookupQuerySchema = z.object({
+  ref: z.string().min(3).max(64),
+});
+
 export const searchQuerySchema = z.object({
   q: z.string().min(1).max(120),
   limit: z.coerce.number().int().min(1).max(50).optional(),

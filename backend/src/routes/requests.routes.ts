@@ -3,7 +3,11 @@ import { requireAuth } from '../middleware/auth';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 import { validate } from '../middleware/validate';
 import { rateLimit } from '../middleware/rateLimit';
-import { moneyRequestSchema, requestListQuerySchema } from '../middleware/schemas';
+import {
+  moneyRequestSchema,
+  rejectRequestSchema,
+  requestListQuerySchema,
+} from '../middleware/schemas';
 import { RequestService } from '../services/request.service';
 import { asyncHandler, ok } from '../utils/asyncHandler';
 
@@ -35,6 +39,14 @@ router.get(
   })
 );
 
+router.get(
+  '/:idOrReference',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    ok(res, await RequestService.getForUser(req.params.idOrReference, req.userId!));
+  })
+);
+
 router.post(
   '/:idOrReference/approve',
   requireAuth,
@@ -47,8 +59,12 @@ router.post(
 router.post(
   '/:idOrReference/reject',
   requireAuth,
+  validate(rejectRequestSchema),
   asyncHandler(async (req, res) => {
-    ok(res, await RequestService.reject(req.params.idOrReference, req.userId!));
+    ok(
+      res,
+      await RequestService.reject(req.params.idOrReference, req.userId!, req.body.reason ?? null)
+    );
   })
 );
 

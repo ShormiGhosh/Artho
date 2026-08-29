@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import SendMoneyPage from './pages/SendMoneyPage';
 import RequestMoneyPage from './pages/RequestMoneyPage';
 import RequestsPage from './pages/RequestsPage';
+import RequestDetailsPage from './pages/RequestDetailsPage';
 import HistoryPage from './pages/HistoryPage';
 import TransactionDetailsPage from './pages/TransactionDetailsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/send" element={<SendMoneyPage />} />
         <Route path="/request" element={<RequestMoneyPage />} />
         <Route path="/requests" element={<RequestsPage />} />
+        <Route path="/requests/:reference" element={<RequestDetailsPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/tx/:reference" element={<TransactionDetailsPage />} />
         <Route path="/profile" element={<ProfilePage />} />

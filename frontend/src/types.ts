@@ -50,6 +50,8 @@ export interface MoneyRequest {
   reference: string;
   direction: 'SENT' | 'RECEIVED';
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+  requester_id: string;
+  requestee_id: string;
   amount_bdt: string;
   amount_display: string;
   reason: string | null;
@@ -57,7 +59,14 @@ export interface MoneyRequest {
   requester_name?: string;
   requestee_name?: string;
   related_transfer_id: string | null;
+  related_transfer_reference: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  cancelled_at: string | null;
+  resolved_at: string | null;
+  rejection_reason: string | null;
   created_at: string;
+  updated_at: string;
   expires_at: string;
 }
 

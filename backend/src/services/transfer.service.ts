@@ -279,13 +279,15 @@ export const TransferService = {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       idOrReference
     );
+    // References are stored upper-case; accept any casing from callers.
+    const lookup = isUuid ? idOrReference : idOrReference.toUpperCase();
     const { rows } = await pool.query<TransferRow & { sender_name: string; receiver_name: string }>(
       `SELECT t.*, s.full_name AS sender_name, r.full_name AS receiver_name
          FROM transfers t
          JOIN users s ON s.id = t.sender_id
          JOIN users r ON r.id = t.receiver_id
         WHERE ${isUuid ? 't.id = $1' : 't.reference = $1'}`,
-      [idOrReference]
+      [lookup]
     );
     const row = rows[0];
     if (!row) throw Errors.transferNotFound();

@@ -62,7 +62,10 @@ export default function DashboardPage() {
                   </p>
                   {r.reason && <p className="text-xs text-slate-500">{r.reason}</p>}
                 </div>
-                <Link to="/requests" className="btn-primary !py-1.5 !px-3 text-xs">
+                <Link
+                  to={`/requests/${r.reference}`}
+                  className="btn-primary !py-1.5 !px-3 text-xs"
+                >
                   Review
                 </Link>
               </div>
@@ -100,7 +103,11 @@ function ActivityRow({ item }: { item: HistoryItem }) {
   const sign = item.kind === 'TRANSFER' ? (item.direction === 'SENT' ? '−' : '+') : '';
   return (
     <button
-      onClick={() => item.kind === 'TRANSFER' && navigate(`/tx/${item.reference}`)}
+      onClick={() =>
+        navigate(
+          item.kind === 'TRANSFER' ? `/tx/${item.reference}` : `/requests/${item.reference}`
+        )
+      }
       className="flex w-full items-center gap-3 py-3 text-left"
     >
       <span
