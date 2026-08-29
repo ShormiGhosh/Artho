@@ -1,0 +1,86 @@
+import { FormEvent, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { api, errorMessage } from '../lib/api';
+import { formatBdt, fullTime } from '../lib/format';
+import { Alert, PageHeader, Spinner } from '../components/ui';
+
+export default function ProfilePage() {
+  const { me } = useAuth();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      await api.post('/auth/change-password', {
+        current_password: current,
+        new_password: next,
+      });
+      setMsg({ kind: 'success', text: 'Password updated.' });
+      setCurrent('');
+      setNext('');
+    } catch (err) {
+      setMsg({ kind: 'error', text: errorMessage(err) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-lg space-y-6">
+      <PageHeader title="Profile" />
+
+      <div className="card p-6">
+        <dl className="divide-y divide-slate-100 text-sm">
+          <Row k="Name" v={me?.full_name ?? ''} />
+          <Row k="Email" v={me?.email ?? ''} />
+          <Row k="Account status" v={me?.account_status ?? ''} />
+          <Row k="Member since" v={me ? fullTime(me.created_at) : ''} />
+          <Row k="Balance" v={me ? formatBdt(me.wallet.balance_bdt) : ''} />
+        </dl>
+      </div>
+
+      <form onSubmit={submit} className="card space-y-4 p-6">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Change password</h2>
+        {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
+        <div>
+          <label className="label">Current password</label>
+          <input
+            className="input"
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className="label">New password</label>
+          <input
+            className="input"
+            type="password"
+            minLength={8}
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            required
+          />
+        </div>
+        <button className="btn-primary" disabled={busy}>
+          {busy ? <Spinner className="h-4 w-4" /> : 'Update password'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between py-2.5">
+      <dt className="text-slate-500">{k}</dt>
+      <dd className="font-medium text-slate-800">{v}</dd>
+    </div>
+  );
+}

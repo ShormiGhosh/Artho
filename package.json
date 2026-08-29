@@ -1,0 +1,17 @@
+{
+  "name": "artho",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Artho - money movement platform (PSTU IT Carnival 2026)",
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "setup": "npm --prefix backend install && npm --prefix frontend install",
+    "migrate": "npm --prefix backend run migrate",
+    "seed": "npm --prefix backend run seed",
+    "dev:api": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix frontend run dev",
+    "test": "npm --prefix backend test",
+    "smoke": "node backend/scripts/smoke.mjs"
+  }
+}

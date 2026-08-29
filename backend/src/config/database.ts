@@ -1,4 +1,4 @@
-import { Pool, PoolClient, types } from 'pg';
+import { Pool, PoolClient, QueryResultRow, types } from 'pg';
 import { env } from './env';
 
 // BIGINT (OID 20) -> native BigInt so money math never touches floating point.
@@ -27,7 +27,7 @@ export async function verifyConnection(): Promise<void> {
   }
 }
 
-export async function query<T = any>(text: string, params?: any[]) {
+export async function query<T extends QueryResultRow = any>(text: string, params?: any[]) {
   return pool.query<T>(text, params);
 }
 

@@ -1,7 +1,7 @@
 {
-  "name": "moneyflow-backend",
+  "name": "artho-backend",
   "version": "1.0.0",
-  "description": "MoneyFlow - money movement platform backend (PSTU IT Carnival 2026)",
+  "description": "Artho - money movement platform backend (PSTU IT Carnival 2026)",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",

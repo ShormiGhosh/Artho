@@ -1,0 +1,32 @@
+import crypto from 'crypto';
+
+function today(): string {
+  const d = new Date();
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}${m}${day}`;
+}
+
+function randomChunk(len: number): string {
+  return crypto
+    .randomBytes(len)
+    .toString('hex')
+    .slice(0, len)
+    .toUpperCase();
+}
+
+/** Human-friendly, copyable transfer reference: TXN-20260829-9F3A1C7B */
+export function newTransferReference(): string {
+  return `TXN-${today()}-${randomChunk(8)}`;
+}
+
+/** Human-friendly money-request reference: REQ-20260829-9F3A1C7B */
+export function newRequestReference(): string {
+  return `REQ-${today()}-${randomChunk(8)}`;
+}
+
+/** Server-side idempotency key for internally-triggered transfers. */
+export function newInternalIdempotencyKey(prefix: string): string {
+  return `req-${prefix}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+}

@@ -16,7 +16,7 @@ export const env = {
   PORT: parseInt(process.env.PORT ?? '3000', 10),
   DATABASE_URL: required(
     'DATABASE_URL',
-    'postgresql://moneyflow:moneyflow@localhost:5432/moneyflow'
+    'postgresql://artho:artho@localhost:5544/artho'
   ),
   DB_POOL_MIN: parseInt(process.env.DB_POOL_MIN ?? '2', 10),
   DB_POOL_MAX: parseInt(process.env.DB_POOL_MAX ?? '20', 10),
