@@ -66,7 +66,7 @@ export default function ProgramDetailPage() {
       />
 
       <div className="card mb-4 flex flex-wrap items-center gap-3 p-4">
-        <span className="badge bg-violet-100 text-violet-700">{program.category}</span>
+        <span className="badge bg-gold-100 text-gold-800">{program.category}</span>
         <StatusBadge status={program.status} />
         <span className="text-sm text-slate-500">
           {program.beneficiary_count ?? 0} active beneficiaries ·{' '}

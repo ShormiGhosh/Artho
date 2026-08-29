@@ -12,15 +12,21 @@ const BASE_NAV: NavItem[] = [
   { to: '/send', label: 'Send' },
   { to: '/request', label: 'Request' },
   { to: '/requests', label: 'Requests' },
+  { to: '/groups', label: 'Groups' },
   { to: '/history', label: 'History' },
+  { to: '/summary', label: 'Summary' },
 ];
 
 function navFor(role: string | undefined): NavItem[] {
+  const tail: NavItem[] = [{ to: '/profile', label: 'Profile' }];
+  if (role === 'ADMIN') {
+    return [...BASE_NAV, { to: '/security', label: 'Security' }, ...tail];
+  }
   const middle: NavItem =
     role === 'INSTITUTION'
       ? { to: '/programs', label: 'Programmes' }
       : { to: '/stipends', label: 'Stipends' };
-  return [...BASE_NAV, middle, { to: '/profile', label: 'Profile' }];
+  return [...BASE_NAV, middle, ...tail];
 }
 
 export default function Layout() {
@@ -55,12 +61,16 @@ export default function Layout() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3 sm:gap-4">
           <button
             onClick={() => navigate('/')}
-            className="text-lg font-extrabold tracking-tight text-brand-700"
+            className="flex shrink-0 items-center gap-2"
+            aria-label="Artho home"
           >
-            Ar<span className="text-slate-900">tho</span>
+            <img src="/artho-logo.png" alt="Artho" className="h-9 w-9 object-contain" />
+            <span className="hidden text-lg font-extrabold tracking-tight text-brand-700 xs:inline">
+              Ar<span className="text-gold-500">tho</span>
+            </span>
           </button>
 
           <nav className="ml-4 hidden gap-1 md:flex">
@@ -80,10 +90,10 @@ export default function Layout() {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-xs text-slate-400">Balance</p>
-              <p className="text-sm font-bold text-slate-900">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <div className="text-right">
+              <p className="hidden text-xs text-slate-400 sm:block">Balance</p>
+              <p className="text-xs font-bold text-slate-900 sm:text-sm">
                 {me ? formatBdt(me.wallet.balance_bdt) : '—'}
               </p>
             </div>
@@ -102,7 +112,7 @@ export default function Layout() {
                 )}
               </button>
               {open && (
-                <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-slate-200">
+                <div className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-slate-200">
                   <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2">
                     <span className="text-sm font-semibold">Notifications</span>
                     <button onClick={markAll} className="text-xs text-brand-600 hover:underline">

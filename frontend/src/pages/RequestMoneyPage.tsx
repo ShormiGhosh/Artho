@@ -42,7 +42,7 @@ export default function RequestMoneyPage() {
     return (
       <div className="mx-auto max-w-lg">
         <div className="card p-8 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 text-2xl">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gold-100 text-2xl">
             ✓
           </div>
           <p className="mt-3 text-lg font-bold">Request sent</p>

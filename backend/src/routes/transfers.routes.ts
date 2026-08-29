@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { idempotencyMiddleware } from '../middleware/idempotency';
+import { fraudMiddleware } from '../middleware/fraud';
 import { validate } from '../middleware/validate';
 import { rateLimit } from '../middleware/rateLimit';
 import { listTransfersQuerySchema, transferSchema } from '../middleware/schemas';
 import { TransferService } from '../services/transfer.service';
+import { SecurityService } from '../services/security.service';
 import { asyncHandler, ok } from '../utils/asyncHandler';
 
 const router = Router();
@@ -14,6 +16,7 @@ router.post(
   requireAuth,
   rateLimit({ windowMs: 60_000, max: 30, key: (req) => `${req.userId}:transfer` }),
   validate(transferSchema),
+  fraudMiddleware,
   idempotencyMiddleware,
   asyncHandler(async (req, res) => {
     const result = await TransferService.execute({
@@ -23,8 +26,23 @@ router.post(
       note: req.body.note ?? null,
       idempotencyKey: req.idempotencyKey!,
       type: 'TRANSFER',
+      simulate: req.body.simulate ?? null,
     });
-    ok(res, result, 202);
+    if (req.riskAssessment) {
+      void SecurityService.linkTransfer(req.riskAssessment.id, result.transfer_id);
+    }
+    ok(res, { ...result, risk: req.riskAssessment ?? null }, 202);
+  })
+);
+
+// "What happened to my money?" — reconcile an uncertain transfer and return its
+// definite final outcome plus the full timeline. Idempotent; never moves money.
+router.post(
+  '/:idOrReference/verify',
+  requireAuth,
+  rateLimit({ windowMs: 60_000, max: 60, key: (req) => `${req.userId}:verify` }),
+  asyncHandler(async (req, res) => {
+    ok(res, await TransferService.verify(req.params.idOrReference, req.userId!));
   })
 );
 

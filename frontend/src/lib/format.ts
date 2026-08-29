@@ -31,6 +31,7 @@ const STATUS_STYLES: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-700',
   PENDING: 'bg-amber-100 text-amber-700',
   PROCESSING: 'bg-amber-100 text-amber-700',
+  VERIFYING: 'bg-brand-100 text-brand-700',
   PARTIAL: 'bg-amber-100 text-amber-700',
   SUSPENDED: 'bg-amber-100 text-amber-700',
   FAILED: 'bg-rose-100 text-rose-700',

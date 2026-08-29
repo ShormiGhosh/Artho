@@ -15,12 +15,19 @@ const key = (id) => `req-${id}-${Date.now()}-${rnd()}${rnd()}`.slice(0, 60);
 const login = async (email) =>
   (await j('/auth/login', { method: 'POST', body: { email, password: 'Test123456' } })).d.data;
 const wal = async (t) => BigInt((await j('/wallet', { headers: H(t) })).d.data.wallet.balance_paisa);
+const phone = () =>
+  '01' + (3 + Math.floor(Math.random() * 7)) + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+const verifyDev = async (t, registerJson) => {
+  const code = registerJson?.data?.verification?.dev_code;
+  if (code) await j('/auth/verify-email', { method: 'POST', headers: H(t), body: { code } });
+};
 const regUser = async (nid) => {
   const e = `st_${rnd()}@ex.com`;
   const r = await j('/auth/register', {
     method: 'POST',
-    body: { email: e, password: 'Test123456', full_name: 'Stu ' + rnd(), nid: nid ?? undefined },
+    body: { email: e, password: 'Test123456', full_name: 'Stu ' + rnd(), phone: phone(), nid: nid ?? undefined },
   });
+  await verifyDev(r.d.data.token, r.d);
   return { t: r.d.data.token, id: r.d.data.user_id };
 };
 let P = 0, F = 0;
@@ -34,10 +41,11 @@ ck('individual login carries role USER', rana.role === 'USER', rana.role);
 
 const reg = await j('/auth/register', {
   method: 'POST',
-  body: { email: `inst_${rnd()}@ex.com`, password: 'Test123456', full_name: 'New Board', role: 'INSTITUTION' },
+  body: { email: `inst_${rnd()}@ex.com`, password: 'Test123456', full_name: 'New Board', phone: phone(), role: 'INSTITUTION' },
 });
 ck('register role=INSTITUTION funds larger opening balance', reg.d.data.wallet.balance_paisa === '100000000000', reg.d.data.wallet.balance_paisa);
 const boardT = reg.d.data.token;
+await verifyDev(boardT, reg.d);
 
 // ---- a plain user cannot create programmes ----
 const denied = await j('/stipend-programs', { method: 'POST', headers: H(rana.token), body: { name: 'X' } });
@@ -88,7 +96,9 @@ const e2 = await j(`/stipend-programs/${prog}/beneficiaries`, {
 });
 ck('enrol NID-less user stamps NID onto account', e2.s === 201);
 const s2profile = await j('/auth/me', { headers: H(s2.t) });
-ck('  -> account now has that NID on file', s2profile.d.data.nid === '1992222222222', s2profile.d.data.nid);
+ck('  -> account now has that NID on file (stored encrypted, returned masked)',
+  s2profile.d.data.has_nid === true && s2profile.d.data.nid.endsWith('2222') && !s2profile.d.data.nid.includes('19922'),
+  s2profile.d.data.nid);
 
 const invalidNid = await j(`/stipend-programs/${prog}/beneficiaries`, {
   method: 'POST', headers: H(boardT),

@@ -35,8 +35,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
+        <img
+          src="/artho-logo.png"
+          alt="Artho"
+          className="mx-auto mb-3 h-20 w-20 object-contain"
+        />
         <h1 className="mb-1 text-center text-3xl font-extrabold text-brand-700">
-          Ar<span className="text-slate-900">tho</span>
+          Ar<span className="text-gold-500">tho</span>
         </h1>
         <p className="mb-6 text-center text-sm text-slate-500">
           Move money with certainty.

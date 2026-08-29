@@ -32,6 +32,18 @@ export const INSTITUTION_INITIAL_BALANCE_PAISA = BigInt(
 /** Bangladesh NID: 10, 13 or 17 digits. */
 export const NID_REGEX = /^(\d{10}|\d{13}|\d{17})$/;
 
+/** Bangladesh mobile number: optional +880/880 country code or a leading 0,
+ *  then a valid operator prefix (3-9) and 8 more digits — 11 digits total
+ *  in local form (e.g. 01712345678). */
+export const PHONE_REGEX = /^(?:\+?880|0)1[3-9]\d{8}$/;
+
+/** Normalises an already-validated BD phone to local 11-digit form: 01XXXXXXXXX. */
+export function normalizePhoneBD(input: string): string {
+  const digits = input.replace(/[^\d]/g, '');
+  const local = digits.startsWith('880') ? digits.slice(3) : digits;
+  return local.startsWith('0') ? local : `0${local}`;
+}
+
 /** Shown on every stipend transaction — funds carry no cash-out fee. */
 export const STIPEND_FEE_NOTE =
   'উপবৃত্তি — যেকোনো এজেন্ট থেকে বিনামূল্যে ক্যাশ আউট (no cash-out fee on stipend funds)';

@@ -23,9 +23,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="card overflow-hidden">
-        <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white">
+        <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white sm:p-6">
           <p className="text-sm text-brand-100">Available balance</p>
-          <p className="mt-1 text-4xl font-extrabold tracking-tight">
+          <p className="mt-1 break-words text-3xl font-extrabold tracking-tight sm:text-4xl">
             {me ? formatBdt(me.wallet.balance_bdt) : '—'}
           </p>
           <p className="mt-1 text-xs text-brand-200">
@@ -55,16 +55,16 @@ export default function DashboardPage() {
           </h2>
           <div className="space-y-2">
             {pending.map((r) => (
-              <div key={r.request_id} className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-3">
-                <div>
+              <div key={r.request_id} className="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-800">
                     {r.counterparty_name} requests {formatBdt(r.amount_bdt)}
                   </p>
-                  {r.reason && <p className="text-xs text-slate-500">{r.reason}</p>}
+                  {r.reason && <p className="truncate text-xs text-slate-500">{r.reason}</p>}
                 </div>
                 <Link
                   to={`/requests/${r.reference}`}
-                  className="btn-primary !py-1.5 !px-3 text-xs"
+                  className="btn-primary shrink-0 !py-1.5 !px-3 text-xs"
                 >
                   Review
                 </Link>
@@ -113,7 +113,7 @@ function ActivityRow({ item }: { item: HistoryItem }) {
       <span
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
           item.kind === 'REQUEST'
-            ? 'bg-violet-100 text-violet-700'
+            ? 'bg-gold-100 text-gold-800'
             : item.direction === 'SENT'
               ? 'bg-rose-100 text-rose-700'
               : 'bg-emerald-100 text-emerald-700'
@@ -129,7 +129,7 @@ function ActivityRow({ item }: { item: HistoryItem }) {
         </span>
         <span className="block text-xs text-slate-400">{relativeTime(item.created_at)}</span>
       </span>
-      <span className="text-right">
+      <span className="shrink-0 text-right">
         <span
           className={`block text-sm font-bold ${
             outgoing ? 'text-rose-600' : item.kind === 'TRANSFER' ? 'text-emerald-600' : 'text-slate-700'

@@ -10,6 +10,8 @@ const STATUSES = [
   'all',
   'COMPLETED',
   'PENDING',
+  'PROCESSING',
+  'VERIFYING',
   'FAILED',
   'APPROVED',
   'REJECTED',
@@ -212,7 +214,7 @@ export default function HistoryPage() {
                   <span className="block text-xs text-rose-500">{it.failure_reason}</span>
                 )}
               </span>
-              <span className="text-right">
+              <span className="shrink-0 text-right">
                 <span className="block text-sm font-bold text-slate-800">
                   {formatBdt(it.amount_bdt)}
                 </span>

@@ -1,9 +1,16 @@
 type Level = 'INFO' | 'WARN' | 'ERROR';
 
+const SECRET_KEY =
+  /^(password|password_hash|pin|token|secret|authorization|jwt|nid|risk_ack|verification_token|api_key|apikey|openai_api_key|access_token|refresh_token)$/i;
+
 function emit(level: Level, message: string, context?: Record<string, unknown>): void {
   const line = JSON.stringify(
     { level, ts: new Date().toISOString(), message, ...context },
-    (_k, v) => (typeof v === 'bigint' ? v.toString() : v)
+    (k, v) => {
+      if (typeof v === 'bigint') return v.toString();
+      if (SECRET_KEY.test(k)) return '[redacted]';
+      return v;
+    }
   );
   if (level === 'ERROR') console.error(line);
   else if (level === 'WARN') console.warn(line);

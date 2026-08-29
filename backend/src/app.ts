@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
 import { requestContext } from './middleware/requestContext';
+import { enforceHttps, securityContext } from './middleware/security';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import api from './routes';
 
@@ -15,7 +16,13 @@ export function createApp() {
     typeof value === 'bigint' ? value.toString() : value
   );
 
-  app.use(helmet()); 
+  app.use(
+    helmet({
+      hsts: { maxAge: 31_536_000, includeSubDomains: true, preload: true },
+      contentSecurityPolicy: false, // API only; the SPA sets its own
+    })
+  );
+  app.use(enforceHttps);
   app.use(
     cors({
       origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN.split(','),
@@ -24,6 +31,7 @@ export function createApp() {
   );
   app.use(express.json({ limit: '256kb' }));
   app.use(requestContext);
+  app.use(securityContext);
 
   app.get('/', (_req, res) => {
     res.json({ name: 'Artho API', version: '1.0.0', docs: '/api/health' });

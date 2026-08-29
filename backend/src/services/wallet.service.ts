@@ -1,11 +1,12 @@
 import { pool } from '../config/database';
 import { Errors } from '../utils/errors';
 import { paisaToBdtString, formatBdt } from '../utils/money';
+import { decryptField, maskNid } from '../utils/crypto';
 
 export const WalletService = {
   async getWallet(userId: string) {
     const { rows } = await pool.query(
-      `SELECT u.id, u.email, u.full_name, u.account_status, u.role, u.nid, u.created_at,
+      `SELECT u.id, u.email, u.phone, u.full_name, u.account_status, u.role, u.nid_enc, u.created_at,
               w.balance_paisa, w.currency, w.updated_at AS wallet_updated_at
          FROM users u
          JOIN wallets w ON w.user_id = u.id
@@ -17,10 +18,11 @@ export const WalletService = {
     return {
       user_id: r.id,
       email: r.email,
+      phone: r.phone,
       full_name: r.full_name,
       account_status: r.account_status,
       role: r.role,
-      nid: r.nid,
+      nid: maskNid(decryptField(r.nid_enc)),
       created_at: r.created_at,
       wallet: {
         balance_paisa: r.balance_paisa.toString(),

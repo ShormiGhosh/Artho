@@ -17,12 +17,19 @@ const j = async (p, o = {}) => {
 const rnd = () => Math.random().toString(36).slice(2, 10);
 const H = (t) => ({ Authorization: `Bearer ${t}` });
 const wal = async (t) => BigInt((await j('/wallet', { headers: H(t) })).d.data.wallet.balance_paisa);
+const phone = () =>
+  '01' + (3 + Math.floor(Math.random() * 7)) + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+const verifyDev = async (t, registerJson) => {
+  const code = registerJson?.data?.verification?.dev_code;
+  if (code) await j('/auth/verify-email', { method: 'POST', headers: H(t), body: { code } });
+};
 const regUser = async (nid) => {
   const e = `res_${rnd()}@ex.com`;
   const r = await j('/auth/register', {
     method: 'POST',
-    body: { email: e, password: 'Test123456', full_name: 'Res ' + rnd(), nid },
+    body: { email: e, password: 'Test123456', full_name: 'Res ' + rnd(), phone: phone(), nid },
   });
+  await verifyDev(r.d.data.token, r.d);
   return { t: r.d.data.token, id: r.d.data.user_id, email: e };
 };
 const psql = (sql) =>
@@ -41,10 +48,12 @@ async function waitTerminal(ref, headers, ms = 15000) {
 let P = 0, F = 0;
 const ck = (n, c, x = '') => { c ? P++ : F++; console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? '  ' + x : '')); };
 
-const board = (await j('/auth/register', {
+const boardReg = await j('/auth/register', {
   method: 'POST',
-  body: { email: `resboard_${rnd()}@ex.com`, password: 'Test123456', full_name: 'Res Board', role: 'INSTITUTION' },
-})).d.data;
+  body: { email: `resboard_${rnd()}@ex.com`, password: 'Test123456', full_name: 'Res Board', phone: phone(), role: 'INSTITUTION' },
+});
+const board = boardReg.d.data;
+await verifyDev(board.token, boardReg.d);
 const prog = (await j('/stipend-programs', { method: 'POST', headers: H(board.token), body: { name: 'Resume Test', category: 'GRANT' } })).d.data.reference;
 
 const a = await regUser('1990000100001');

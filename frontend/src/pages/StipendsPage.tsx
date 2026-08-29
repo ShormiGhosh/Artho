@@ -30,7 +30,7 @@ export default function StipendsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader title="Stipends & grants" subtitle="উপবৃত্তি, বৃত্তি ও অনুদান" />
+      <PageHeader title="Stipends & grants" />
 
       {noNid && (
         <Alert kind="info">
@@ -71,7 +71,7 @@ export default function StipendsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="badge bg-violet-100 text-violet-700">{e.category}</span>
+                      <span className="badge bg-gold-100 text-gold-800">{e.category}</span>
                       <StatusBadge status={e.status} />
                     </div>
                     <p className="mt-1 text-sm font-semibold text-slate-800">{e.program_name}</p>

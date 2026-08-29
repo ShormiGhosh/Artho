@@ -9,7 +9,8 @@ type NotificationType =
   | 'REQUEST_REJECTED'
   | 'REQUEST_CANCELLED'
   | 'REQUEST_EXPIRED'
-  | 'STIPEND_RECEIVED';
+  | 'STIPEND_RECEIVED'
+  | 'SECURITY_ALERT';
 
 interface CreateNotificationInput {
   userId: string;

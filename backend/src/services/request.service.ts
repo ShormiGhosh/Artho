@@ -175,6 +175,8 @@ export const RequestService = {
     if (row.status !== 'PENDING') throw Errors.requestNotPending();
 
     // Deterministic key => approving twice (retry or double-click) moves money once.
+    // 'retry' so that approving again after topping up succeeds (the request is
+    // still PENDING; a prior failed approval transfer is re-attempted).
     const transfer = await TransferService.execute({
       senderId: requesteeId,
       receiverId: row.requester_id,
@@ -182,6 +184,7 @@ export const RequestService = {
       note: row.reason ? `Request approved: ${row.reason}` : 'Money request approved',
       idempotencyKey: `req-approve-${row.id}`,
       type: 'REQUEST_APPROVAL',
+      onPriorFailure: 'retry',
     });
 
     const updated = await pool.query<RequestRow>(

@@ -5,8 +5,17 @@ import { IDEMPOTENCY_TTL_HOURS } from '../config/constants';
 import { Errors } from '../utils/errors';
 import { logger } from '../utils/logger';
 
+// Fields that are part of the retry envelope, not the payment intent — they must
+// not change the request fingerprint (e.g. confirming a MEDIUM-risk transfer
+// re-sends the same key with an added `risk_ack`).
+const NON_INTENT_FIELDS = new Set(['risk_ack', 'simulate']);
+
 function fingerprint(req: Request): string {
-  const body = JSON.stringify(req.body ?? {});
+  const raw = (req.body ?? {}) as Record<string, unknown>;
+  const intent = Object.fromEntries(
+    Object.entries(raw).filter(([k]) => !NON_INTENT_FIELDS.has(k))
+  );
+  const body = JSON.stringify(intent);
   return crypto
     .createHash('sha256')
     .update(`${req.method}:${req.baseUrl}${req.path}:${body}`)

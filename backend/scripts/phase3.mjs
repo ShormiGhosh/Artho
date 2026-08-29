@@ -10,9 +10,13 @@ const j = async (p, o = {}) => {
   return { s: r.status, d };
 };
 const rnd = () => Math.random().toString(36).slice(2, 10);
+const phone = () =>
+  '01' + (3 + Math.floor(Math.random() * 7)) + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
 const reg = async () => {
   const e = `p3_${rnd()}@ex.com`;
-  const r = await j('/auth/register', { method: 'POST', body: { email: e, password: 'Test123456', full_name: 'P3 ' + rnd() } });
+  const r = await j('/auth/register', { method: 'POST', body: { email: e, password: 'Test123456', full_name: 'P3 ' + rnd(), phone: phone() } });
+  const code = r.d.data.verification?.dev_code;
+  if (code) await j('/auth/verify-email', { method: 'POST', headers: { Authorization: `Bearer ${r.d.data.token}` }, body: { code } });
   return { t: r.d.data.token, id: r.d.data.user_id, name: r.d.data.full_name };
 };
 const wal = async (t) => BigInt((await j('/wallet', { headers: { Authorization: `Bearer ${t}` } })).d.data.wallet.balance_paisa);

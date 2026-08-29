@@ -24,14 +24,55 @@ export function verifyToken(token: string): JwtPayload {
   }
 }
 
-export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
-  const header = req.header('authorization');
-  if (!header || !header.startsWith('Bearer ')) {
-    return next(Errors.unauthorized('Missing bearer token'));
+async function authenticate(
+  req: Request,
+  next: NextFunction,
+  allowedStatuses: readonly string[]
+): Promise<void> {
+  try {
+    const header = req.header('authorization');
+    if (!header || !header.startsWith('Bearer ')) {
+      return next(Errors.unauthorized('Missing bearer token'));
+    }
+    const payload = verifyToken(header.slice(7).trim());
+
+    // Session invalidation: tokens issued before the last password change are dead.
+    const { rows } = await pool.query(
+      'SELECT account_status, EXTRACT(EPOCH FROM password_changed_at) AS pwd_epoch FROM users WHERE id = $1',
+      [payload.user_id]
+    );
+    if (rows.length === 0 || !allowedStatuses.includes(rows[0].account_status)) {
+      return next(Errors.unauthorized('Account not available'));
+    }
+    if (payload.iat && Number(rows[0].pwd_epoch) > payload.iat + 1) {
+      return next(Errors.unauthorized('Session expired — please log in again'));
+    }
+
+    req.userId = payload.user_id;
+    next();
+  } catch (err) {
+    next(err);
   }
-  const payload = verifyToken(header.slice(7).trim());
-  req.userId = payload.user_id;
-  next();
+}
+
+/** Standard gate: only a fully ACTIVE account may proceed. Used everywhere
+ *  money moves or account data is written. */
+export async function requireAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  return authenticate(req, next, ['ACTIVE']);
+}
+
+/**
+ * Same authentication, but also lets a PENDING_VERIFICATION account through.
+ * Reserved for the handful of self-service routes an unverified user must
+ * still reach: reading their own profile/wallet, verifying, resending the
+ * code, and logging out. Every money-moving route stays on `requireAuth`.
+ */
+export async function requireAuthAllowUnverified(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  return authenticate(req, next, ['ACTIVE', 'PENDING_VERIFICATION']);
 }
 
 /**

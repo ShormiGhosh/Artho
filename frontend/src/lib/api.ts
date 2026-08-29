@@ -8,7 +8,10 @@ export const tokenStore = {
   clear: () => localStorage.removeItem(TOKEN_KEY),
 };
 
-export const api = axios.create({ baseURL: '/api' });
+// `withCredentials` lets the browser send/receive the httpOnly refresh-token
+// cookie (scoped server-side to /api/auth) on every request. The access token
+// itself still travels as a normal Bearer header from localStorage below.
+export const api = axios.create({ baseURL: '/api', withCredentials: true });
 
 api.interceptors.request.use((config) => {
   const token = tokenStore.get();
@@ -21,9 +24,57 @@ export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn;
 }
 
+// Endpoints where a 401 means exactly what it says (bad password, no session
+// to refresh, or the refresh call itself failed) — never chase these with a
+// silent refresh-and-retry.
+const NO_REFRESH_RETRY = ['/auth/login', '/auth/register', '/auth/refresh'];
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+/** Single-flight refresh: concurrent 401s all await the same in-flight call
+ *  instead of each racing their own /auth/refresh (which would trip reuse
+ *  detection against each other). */
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = api
+      .post('/auth/refresh')
+      .then((res) => {
+        const token = res.data?.data?.token as string | undefined;
+        if (token) tokenStore.set(token);
+        return token ?? null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
 api.interceptors.response.use(
   (r) => r,
-  (error: AxiosError<any>) => {
+  async (error: AxiosError<any>) => {
+    const config = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+    const url = config?.url ?? '';
+
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config._retry &&
+      !NO_REFRESH_RETRY.some((p) => url.includes(p))
+    ) {
+      config._retry = true;
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        config.headers = config.headers ?? {};
+        (config.headers as any).Authorization = `Bearer ${newToken}`;
+        return api(config);
+      }
+      tokenStore.clear();
+      if (onUnauthorized) onUnauthorized();
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && onUnauthorized) onUnauthorized();
     return Promise.reject(error);
   }
@@ -41,6 +92,10 @@ export function errorMessage(err: unknown): string {
 
 export function errorCode(err: unknown): string | undefined {
   return (err as AxiosError<any>)?.response?.data?.error?.code;
+}
+
+export function errorDetails(err: unknown): Record<string, any> | undefined {
+  return (err as AxiosError<any>)?.response?.data?.error?.details;
 }
 
 /** Stable idempotency key for a money mutation; format matches backend expectations. */

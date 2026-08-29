@@ -6,32 +6,45 @@ import {
   INSTITUTION_INITIAL_BALANCE_PAISA,
 } from '../config/constants';
 import { newStipendProgramReference } from '../utils/reference';
+import { blindIndex, encryptField } from '../utils/crypto';
 import { runMigrations } from './migrate';
 
 const DEMO_PASSWORD = 'Test123456';
 
 const DEMO_USERS = [
-  { email: 'rana@example.com', full_name: 'Rana Ahmed', nid: '1990123456789' },
-  { email: 'fatima@example.com', full_name: 'Fatima Khan', nid: '1985123456789' },
-  { email: 'arjun@example.com', full_name: 'Arjun Roy', nid: '1992123456789' },
-  { email: 'nasrin@example.com', full_name: 'Nasrin Begum', nid: null },
+  { email: 'rana@example.com', full_name: 'Rana Ahmed', phone: '01711000001', nid: '1990123456789' },
+  { email: 'fatima@example.com', full_name: 'Fatima Khan', phone: '01711000002', nid: '1985123456789' },
+  { email: 'arjun@example.com', full_name: 'Arjun Roy', phone: '01711000003', nid: '1992123456789' },
+  { email: 'nasrin@example.com', full_name: 'Nasrin Begum', phone: '01711000004', nid: null },
 ];
 
 const INSTITUTION = {
   email: 'board@example.com',
   full_name: 'Chattogram Education Board',
+  phone: '01711000005',
 };
 
 async function createUser(
   client: PoolClient,
-  u: { email: string; full_name: string; role?: string; nid?: string | null },
+  u: { email: string; full_name: string; phone: string; role?: string; nid?: string | null },
   hash: string,
   openingPaisa: bigint
 ): Promise<string> {
+  // Demo/seed accounts are pre-verified — they exist to be logged into
+  // immediately, not to exercise the sign-up verification flow.
   const res = await client.query<{ id: string }>(
-    `INSERT INTO users (email, password_hash, full_name, role, nid)
-     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-    [u.email, hash, u.full_name, u.role ?? 'USER', u.nid ?? null]
+    `INSERT INTO users (email, password_hash, full_name, phone, role, nid_enc, nid_bidx,
+                         account_status, email_verified_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE', NOW()) RETURNING id`,
+    [
+      u.email,
+      hash,
+      u.full_name,
+      u.phone,
+      u.role ?? 'USER',
+      u.nid ? encryptField(u.nid) : null,
+      u.nid ? blindIndex(u.nid) : null,
+    ]
   );
   const id = res.rows[0].id;
   await client.query(`INSERT INTO wallets (user_id, balance_paisa) VALUES ($1, $2)`, [
@@ -73,6 +86,14 @@ async function seed() {
       INSTITUTION_INITIAL_BALANCE_PAISA
     );
     console.log(`[seed] created institution ${INSTITUTION.full_name} <${INSTITUTION.email}>`);
+
+    await createUser(
+      client,
+      { email: 'admin@example.com', full_name: 'Security Admin', phone: '01711000006', role: 'ADMIN' },
+      hash,
+      INITIAL_BALANCE_PAISA
+    );
+    console.log('[seed] created security admin <admin@example.com>');
 
     // A primary-level stipend programme with three enrolled beneficiaries
     // (Nasrin has no NID on file yet, so she is left out — demonstrates the gate).

@@ -11,13 +11,10 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
+  // The API only ever returns a masked NID, so never prefill it into an editable input.
   const [nid, setNid] = useState('');
   const [nidBusy, setNidBusy] = useState(false);
   const [nidMsg, setNidMsg] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
-
-  useEffect(() => {
-    setNid(me?.nid ?? '');
-  }, [me?.nid]);
 
   async function changePassword(e: FormEvent) {
     e.preventDefault();
@@ -65,6 +62,7 @@ export default function ProfilePage() {
         <dl className="divide-y divide-slate-100 text-sm">
           <Row k="Name" v={me?.full_name ?? ''} />
           <Row k="Email" v={me?.email ?? ''} />
+          <Row k="Phone" v={me?.phone ?? 'Not set'} />
           <Row k="Account type" v={me?.role === 'INSTITUTION' ? 'Institution' : 'Individual'} />
           <Row k="Account status" v={me?.account_status ?? ''} />
           <Row k="National ID" v={me?.nid ?? 'Not set'} />
@@ -80,7 +78,7 @@ export default function ProfilePage() {
           </h2>
           {nidMsg && <Alert kind={nidMsg.kind}>{nidMsg.text}</Alert>}
           <p className="text-sm text-slate-500">
-            Stipend money (উপবৃত্তি) for primary and secondary students is paid to the account
+            Stipend money for primary and secondary students is paid to the account
             registered with the guardian's own NID. It must match the NID your institution
             enrols you with.
           </p>
@@ -131,9 +129,9 @@ export default function ProfilePage() {
 
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex items-center justify-between py-2.5">
-      <dt className="text-slate-500">{k}</dt>
-      <dd className="font-medium text-slate-800">{v}</dd>
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <dt className="shrink-0 text-slate-500">{k}</dt>
+      <dd className="min-w-0 text-right font-medium text-slate-800">{v}</dd>
     </div>
   );
 }

@@ -6,8 +6,20 @@
   color-scheme: light;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
-  @apply bg-slate-100 text-slate-900 antialiased;
+  @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: 'Poppins', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Long unbroken strings (emails, references) must never widen a flex row on mobile. */
+dd {
+  overflow-wrap: anywhere;
 }
 
 .card {
@@ -19,7 +31,10 @@ body {
     disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
-  @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  @apply btn bg-brand-700 text-white hover:bg-brand-800;
+}
+.btn-accent {
+  @apply btn bg-gold-400 text-brand-900 hover:bg-gold-500;
 }
 .btn-ghost {
   @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200;

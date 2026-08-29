@@ -130,7 +130,7 @@ export default function ProgramsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="badge bg-violet-100 text-violet-700">{p.category}</span>
+                    <span className="badge bg-gold-100 text-gold-800">{p.category}</span>
                     <StatusBadge status={p.status} />
                   </div>
                   <p className="mt-1 text-lg font-bold text-slate-900">{p.name}</p>

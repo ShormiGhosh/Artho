@@ -104,6 +104,24 @@ export const Errors = {
     ),
   disbursementNotFound: () =>
     new AppError('DISBURSEMENT_NOT_FOUND', 'Disbursement not found', 404),
+
+  // Smart Debt Settlement
+  groupNotFound: () => new AppError('GROUP_NOT_FOUND', 'Group not found', 404),
+  notGroupMember: () =>
+    new AppError('NOT_GROUP_MEMBER', 'You are not a member of this group', 403),
+  notAMember: (message = 'That user is not a member of this group') =>
+    new AppError('USER_NOT_IN_GROUP', message, 422),
+  debtNotFound: () => new AppError('DEBT_NOT_FOUND', 'Debt not found', 404),
+  settlementNotFound: () =>
+    new AppError('SETTLEMENT_NOT_FOUND', 'Settlement not found', 404),
+  nothingToSettle: () =>
+    new AppError('NOTHING_TO_SETTLE', 'This group has no outstanding debts', 422),
+  settlementPlanStale: () =>
+    new AppError(
+      'SETTLEMENT_PLAN_STALE',
+      'The debts changed since you previewed. Preview again before settling.',
+      409
+    ),
   internal: (message = 'An unexpected error occurred') =>
     new AppError('INTERNAL_ERROR', message, 500),
 };

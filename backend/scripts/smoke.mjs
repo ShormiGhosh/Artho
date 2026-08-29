@@ -13,20 +13,40 @@ function check(name, cond, extra = '') {
   }
 }
 
-async function api(path, { method = 'GET', token, body, key } = {}) {
+async function api(path, { method = 'GET', token, body, key, riskAck } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (key) headers['Idempotency-Key'] = key;
+  const sendBody = riskAck ? { ...body, risk_ack: riskAck } : body;
   const res = await fetch(BASE + path, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: sendBody ? JSON.stringify(sendBody) : undefined,
   });
   const json = await res.json().catch(() => ({}));
+  // A legit user would confirm a MEDIUM-risk transfer; the smoke suite auto-confirms
+  // so it keeps exercising the transfer path (fraud rules have their own suite).
+  if (
+    path === '/transfers' &&
+    method === 'POST' &&
+    !riskAck &&
+    json?.data?.status === 'VERIFICATION_REQUIRED'
+  ) {
+    return api(path, { method, token, body, key, riskAck: json.data.verification_token });
+  }
   return { status: res.status, json };
 }
 
 const rnd = () => Math.random().toString(36).slice(2, 10);
+const phone = () =>
+  '01' + (3 + Math.floor(Math.random() * 7)) + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+// New accounts start PENDING_VERIFICATION; the register response echoes the
+// code (dev-only, no SMTP configured here) so scripts can complete the flow.
+async function verifyDev(token, registerJson) {
+  const code = registerJson?.data?.verification?.dev_code;
+  if (!code) return;
+  await api('/auth/verify-email', { method: 'POST', token, body: { code } });
+}
 
 async function main() {
   // login as two seeded users
@@ -55,9 +75,11 @@ async function main() {
   const email = `test_${rnd()}@example.com`;
   const reg = await api('/auth/register', {
     method: 'POST',
-    body: { email, password: 'Test123456', full_name: 'Test User' },
+    body: { email, password: 'Test123456', full_name: 'Test User', phone: phone() },
   });
   check('register new user + funded', reg.status === 201 && reg.json.data.wallet.balance_paisa === '10000000');
+  check('register: PENDING_VERIFICATION until the code is confirmed', reg.json.data.account_status === 'PENDING_VERIFICATION');
+  await verifyDev(reg.json.data.token, reg.json);
 
   // self transfer rejected
   const self = await api('/transfers', {
@@ -112,26 +134,30 @@ async function main() {
   });
   check('idempotency key reuse conflict 409', conflict.status === 409, `got ${conflict.status}`);
 
-  // insufficient balance
+  // insufficient balance — spend down with LOW-risk transfers, then overshoot
   const poor = await api('/auth/register', {
     method: 'POST',
-    body: { email: `poor_${rnd()}@example.com`, password: 'Test123456', full_name: 'Poor User' },
+    body: { email: `poor_${rnd()}@example.com`, password: 'Test123456', full_name: 'Poor User', phone: phone() },
   });
   const poorT = poor.json.data.token;
+  await verifyDev(poorT, poor.json);
+  await api('/transfers', { method: 'POST', token: poorT, key: `req-d1-${Date.now()}-${rnd()}`, body: { receiver_id: fatimaId, amount_bdt: '40000' } });
+  await api('/transfers', { method: 'POST', token: poorT, key: `req-d2-${Date.now()}-${rnd()}`, body: { receiver_id: fatimaId, amount_bdt: '40000' } });
   const broke = await api('/transfers', {
     method: 'POST',
     token: poorT,
     key: `req-x-${Date.now()}-${rnd()}`,
-    body: { receiver_id: fatimaId, amount_bdt: '200000' },
+    body: { receiver_id: fatimaId, amount_bdt: '30000' }, // > remaining ~20000, still LOW risk
   });
   check('insufficient balance 402', broke.status === 402 && broke.json.error.code === 'INSUFFICIENT_BALANCE', `got ${broke.status}`);
 
   // concurrency: 5 parallel transfers of 30000 from a user with exactly 100000 -> 3 succeed, 2 fail, balance 10000
   const cu = await api('/auth/register', {
     method: 'POST',
-    body: { email: `conc_${rnd()}@example.com`, password: 'Test123456', full_name: 'Conc User' },
+    body: { email: `conc_${rnd()}@example.com`, password: 'Test123456', full_name: 'Conc User', phone: phone() },
   });
   const cuT = cu.json.data.token;
+  await verifyDev(cuT, cu.json);
   const results = await Promise.all(
     Array.from({ length: 5 }).map((_, i) =>
       api('/transfers', {

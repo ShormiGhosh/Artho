@@ -4,6 +4,7 @@ import { Errors } from '../utils/errors';
 import { AppError } from '../utils/errors';
 import { bdtToPaisa, formatBdt, MoneyError, paisaToBdtString } from '../utils/money';
 import { newDisbursementReference, newStipendProgramReference } from '../utils/reference';
+import { blindIndex, decryptField, encryptField } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import { TransferService } from './transfer.service';
 
@@ -212,13 +213,13 @@ export const StipendService = {
     if (!NID_REGEX.test(guardianNid)) throw Errors.nidRequired();
 
     const target = await pool.query(
-      `SELECT id, full_name, account_status, role, nid FROM users WHERE id = $1`,
+      `SELECT id, full_name, account_status, role, nid_bidx FROM users WHERE id = $1`,
       [input.user_id]
     );
     if (target.rows.length === 0) throw Errors.userNotFound('Beneficiary account not found');
     const u = target.rows[0];
     if (u.role === 'INSTITUTION') throw Errors.cannotEnrollInstitution();
-    if (u.nid && u.nid !== guardianNid) throw Errors.nidMismatch();
+    if (u.nid_bidx && u.nid_bidx !== blindIndex(guardianNid)) throw Errors.nidMismatch();
 
     const defaultPaisa =
       input.default_amount_bdt !== undefined && input.default_amount_bdt !== null && input.default_amount_bdt !== ''
@@ -226,11 +227,11 @@ export const StipendService = {
         : null;
 
     // Bind the NID to the beneficiary account if it had none on file.
-    if (!u.nid) {
-      await pool.query('UPDATE users SET nid = $1, updated_at = NOW() WHERE id = $2', [
-        guardianNid,
-        u.id,
-      ]);
+    if (!u.nid_bidx) {
+      await pool.query(
+        'UPDATE users SET nid_enc = $1, nid_bidx = $2, updated_at = NOW() WHERE id = $3',
+        [encryptField(guardianNid), blindIndex(guardianNid), u.id]
+      );
     }
 
     // Re-activate a previously removed enrollment instead of erroring.
@@ -602,6 +603,9 @@ export const StipendService = {
                 note: noteText,
                 idempotencyKey: key,
                 type: 'STIPEND',
+                // A resume should genuinely re-attempt a previously-failed payment
+                // (e.g. the programme wallet has since been topped up).
+                onPriorFailure: 'retry',
               });
               status = 'PAID';
               transferId = transfer.transfer_id;
@@ -732,18 +736,21 @@ export const StipendService = {
       ...new Set(input.rows.map((r) => r.email?.trim().toLowerCase()).filter(Boolean)),
     ] as string[];
     const nids = [...new Set(input.rows.map((r) => r.nid?.trim()).filter(Boolean))] as string[];
+    const nidBidx = nids.map((n) => blindIndex(n));
     const ids = [...new Set(input.rows.map((r) => r.user_id).filter(Boolean))] as string[];
 
     const uRes = await pool.query(
-      `SELECT id, full_name, email, nid, account_status, role FROM users
-        WHERE id = ANY($1::uuid[]) OR LOWER(email) = ANY($2::text[]) OR nid = ANY($3::text[])`,
-      [ids, emails, nids]
+      `SELECT id, full_name, email, nid_enc, nid_bidx, account_status, role FROM users
+        WHERE id = ANY($1::uuid[]) OR LOWER(email) = ANY($2::text[]) OR nid_bidx = ANY($3::text[])
+        ORDER BY created_at ASC`,
+      [ids, emails, nidBidx]
     );
+    // NID is not a unique column; if several accounts share one, the newest wins.
     const byId = new Map(uRes.rows.map((u) => [u.id, u]));
     const byEmail = new Map(
       uRes.rows.filter((u) => u.email).map((u) => [u.email.toLowerCase(), u])
     );
-    const byNid = new Map(uRes.rows.filter((u) => u.nid).map((u) => [u.nid, u]));
+    const byNid = new Map(uRes.rows.filter((u) => u.nid_bidx).map((u) => [u.nid_bidx, u]));
 
     type Resolved = {
       beneficiaryId: string;
@@ -760,7 +767,7 @@ export const StipendService = {
       const u =
         (row.user_id && byId.get(row.user_id)) ||
         (row.email && byEmail.get(row.email.trim().toLowerCase())) ||
-        (row.nid && byNid.get(row.nid.trim())) ||
+        (row.nid && byNid.get(blindIndex(row.nid.trim()))) ||
         null;
       if (!u) {
         unresolved.push({ row, reason: 'ACCOUNT_NOT_FOUND' });
@@ -794,13 +801,14 @@ export const StipendService = {
         unresolved.push({ row, reason: 'NOT_ENROLLED' });
         continue;
       }
-      const gNid = (row.guardian_nid || u.nid || '').trim();
+      const uNid = decryptField(u.nid_enc);
+      const gNid = (row.guardian_nid || uNid || '').trim();
       const inst = (row.institution_name || input.default_institution_name || '').trim();
       if (!NID_REGEX.test(gNid)) {
         unresolved.push({ row, reason: 'NID_MISSING' });
         continue;
       }
-      if (u.nid && u.nid !== gNid) {
+      if (uNid && uNid !== gNid) {
         unresolved.push({ row, reason: 'NID_MISMATCH' });
         continue;
       }

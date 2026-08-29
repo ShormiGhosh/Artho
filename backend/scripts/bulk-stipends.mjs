@@ -15,12 +15,19 @@ const IK = (t) => ({ ...H(t), 'Idempotency-Key': `req-${Date.now()}-${rnd()}${rn
 const login = async (email) =>
   (await j('/auth/login', { method: 'POST', body: { email, password: 'Test123456' } })).d.data;
 const wal = async (t) => BigInt((await j('/wallet', { headers: H(t) })).d.data.wallet.balance_paisa);
+const phone = () =>
+  '01' + (3 + Math.floor(Math.random() * 7)) + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+const verifyDev = async (t, registerJson) => {
+  const code = registerJson?.data?.verification?.dev_code;
+  if (code) await j('/auth/verify-email', { method: 'POST', headers: H(t), body: { code } });
+};
 const regUser = async (nid) => {
   const e = `bulk_${rnd()}@ex.com`;
   const r = await j('/auth/register', {
     method: 'POST',
-    body: { email: e, password: 'Test123456', full_name: 'Bulk ' + rnd(), nid: nid ?? undefined },
+    body: { email: e, password: 'Test123456', full_name: 'Bulk ' + rnd(), phone: phone(), nid: nid ?? undefined },
   });
+  await verifyDev(r.d.data.token, r.d);
   return { t: r.d.data.token, id: r.d.data.user_id, email: e };
 };
 async function waitTerminal(ref, headers, ms = 15000) {
@@ -38,9 +45,10 @@ const ck = (n, c, x = '') => { c ? P++ : F++; console.log((c ? '  ok  ' : 'FAIL 
 // institution + a fresh programme
 const boardReg = await j('/auth/register', {
   method: 'POST',
-  body: { email: `bulkboard_${rnd()}@ex.com`, password: 'Test123456', full_name: 'Bulk Board', role: 'INSTITUTION' },
+  body: { email: `bulkboard_${rnd()}@ex.com`, password: 'Test123456', full_name: 'Bulk Board', phone: phone(), role: 'INSTITUTION' },
 });
 const boardT = boardReg.d.data.token;
+await verifyDev(boardT, boardReg.d);
 const prog = (await j('/stipend-programs', { method: 'POST', headers: H(boardT), body: { name: 'Bulk Scholarship 2026', category: 'SCHOLARSHIP' } })).d.data.reference;
 
 // ---- standard disburse now REQUIRES an Idempotency-Key ----

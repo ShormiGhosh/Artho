@@ -12,6 +12,9 @@ import {
   myStipendsRouter,
   programsRouter,
 } from './stipends.routes';
+import { debtGroupsRouter, debtSettlementsRouter } from './debt.routes';
+import securityRoutes from './security.routes';
+import aiRoutes from './ai.routes';
 
 const api = Router();
 
@@ -26,5 +29,9 @@ api.use('/notifications', notificationsRoutes);
 api.use('/stipend-programs', programsRouter);
 api.use('/stipend-disbursements', disbursementsRouter);
 api.use('/stipends', myStipendsRouter);
+api.use('/debt-groups', debtGroupsRouter);
+api.use('/debt-settlements', debtSettlementsRouter);
+api.use('/security', securityRoutes);
+api.use('/ai', aiRoutes);
 
 export default api;

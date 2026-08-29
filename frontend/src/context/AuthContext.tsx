@@ -17,10 +17,11 @@ interface AuthState {
     email: string;
     password: string;
     full_name: string;
+    phone: string;
     role?: 'USER' | 'INSTITUTION';
     nid?: string;
-  }) => Promise<void>;
-  logout: () => void;
+  }) => Promise<{ dev_code?: string }>;
+  logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -31,15 +32,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!tokenStore.get()) {
+    try {
+      // No short-circuit on a missing access token: a valid httpOnly refresh
+      // cookie alone (e.g. after the 15-minute access token expired, or a
+      // brand-new tab) is enough — the api.ts interceptor silently refreshes
+      // on the first 401 and retries this call.
+      const { data } = await api.get('/wallet');
+      setMe(data.data as Me);
+    } catch {
       setMe(null);
-      return;
     }
-    const { data } = await api.get('/wallet');
-    setMe(data.data as Me);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await api.post('/auth/logout').catch(() => undefined);
     tokenStore.clear();
     setMe(null);
   }, []);
@@ -66,12 +72,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: string;
       password: string;
       full_name: string;
+      phone: string;
       role?: 'USER' | 'INSTITUTION';
       nid?: string;
     }) => {
       const { data } = await api.post('/auth/register', input);
       tokenStore.set(data.data.token);
       await refresh();
+      // Dev-mode convenience only (no SMTP configured) — see backend
+      // exposeDevVerificationCode(). Never present in production.
+      return { dev_code: data.data.verification?.dev_code as string | undefined };
     },
     [refresh]
   );

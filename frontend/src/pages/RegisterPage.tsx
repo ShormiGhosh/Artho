@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState<Role>('USER');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [nid, setNid] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,10 @@ export default function RegisterPage() {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (!/^(?:\+?880|0)1[3-9]\d{8}$/.test(phone.trim())) {
+      setError('Enter a valid Bangladeshi phone number, e.g. 01712345678.');
+      return;
+    }
     if (nid && !/^(\d{10}|\d{13}|\d{17})$/.test(nid.trim())) {
       setError('NID must be 10, 13 or 17 digits.');
       return;
@@ -30,14 +35,15 @@ export default function RegisterPage() {
     setBusy(true);
     setError(null);
     try {
-      await register({
+      const { dev_code } = await register({
         email: email.trim(),
         password,
         full_name: fullName.trim(),
+        phone: phone.trim(),
         role,
         nid: nid.trim() || undefined,
       });
-      navigate('/');
+      navigate('/verify', { state: { devCode: dev_code } });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -48,8 +54,13 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
+        <img
+          src="/artho-logo.png"
+          alt="Artho"
+          className="mx-auto mb-3 h-20 w-20 object-contain"
+        />
         <h1 className="mb-1 text-center text-3xl font-extrabold text-brand-700">
-          Ar<span className="text-slate-900">tho</span>
+          Ar<span className="text-gold-500">tho</span>
         </h1>
         <p className="mb-6 text-center text-sm text-slate-500">
           {role === 'INSTITUTION'
@@ -91,6 +102,18 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="label">Phone</label>
+            <input
+              className="input"
+              type="tel"
+              inputMode="numeric"
+              placeholder="01712345678"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               required
             />
           </div>
