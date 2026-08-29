@@ -27,12 +27,19 @@ export function fullTime(iso: string): string {
 const STATUS_STYLES: Record<string, string> = {
   COMPLETED: 'bg-emerald-100 text-emerald-700',
   APPROVED: 'bg-emerald-100 text-emerald-700',
+  PAID: 'bg-emerald-100 text-emerald-700',
+  ACTIVE: 'bg-emerald-100 text-emerald-700',
   PENDING: 'bg-amber-100 text-amber-700',
   PROCESSING: 'bg-amber-100 text-amber-700',
+  PARTIAL: 'bg-amber-100 text-amber-700',
+  SUSPENDED: 'bg-amber-100 text-amber-700',
   FAILED: 'bg-rose-100 text-rose-700',
   REJECTED: 'bg-rose-100 text-rose-700',
   CANCELLED: 'bg-slate-200 text-slate-600',
   EXPIRED: 'bg-slate-200 text-slate-600',
+  SKIPPED: 'bg-slate-200 text-slate-600',
+  CLOSED: 'bg-slate-200 text-slate-600',
+  REMOVED: 'bg-slate-200 text-slate-600',
 };
 
 export function statusClass(status: string): string {

@@ -76,6 +76,34 @@ export const Errors = {
     ),
   rateLimited: () =>
     new AppError('RATE_LIMITED', 'Too many requests, slow down', 429),
+
+  // Stipend / scholarship / grant programmes
+  programNotFound: () =>
+    new AppError('PROGRAM_NOT_FOUND', 'Programme not found', 404),
+  programClosed: () =>
+    new AppError('PROGRAM_CLOSED', 'This programme is closed', 409),
+  beneficiaryNotFound: () =>
+    new AppError('BENEFICIARY_NOT_FOUND', 'Beneficiary not found in this programme', 404),
+  beneficiaryExists: () =>
+    new AppError('BENEFICIARY_EXISTS', 'That user is already enrolled in this programme', 409),
+  cannotEnrollInstitution: () =>
+    new AppError('CANNOT_ENROLL_INSTITUTION', 'Institution accounts cannot be beneficiaries', 409),
+  nidRequired: () =>
+    new AppError('NID_REQUIRED', 'A valid guardian NID is required', 422),
+  nidMismatch: () =>
+    new AppError(
+      'NID_MISMATCH',
+      "The guardian NID does not match the beneficiary account's registered NID",
+      409
+    ),
+  noDisbursementTargets: () =>
+    new AppError(
+      'NO_DISBURSEMENT_TARGETS',
+      'No eligible beneficiaries to disburse to',
+      422
+    ),
+  disbursementNotFound: () =>
+    new AppError('DISBURSEMENT_NOT_FOUND', 'Disbursement not found', 404),
   internal: (message = 'An unexpected error occurred') =>
     new AppError('INTERNAL_ERROR', message, 500),
 };

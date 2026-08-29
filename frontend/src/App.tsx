@@ -12,6 +12,9 @@ import RequestDetailsPage from './pages/RequestDetailsPage';
 import HistoryPage from './pages/HistoryPage';
 import TransactionDetailsPage from './pages/TransactionDetailsPage';
 import ProfilePage from './pages/ProfilePage';
+import ProgramsPage from './pages/ProgramsPage';
+import ProgramDetailPage from './pages/ProgramDetailPage';
+import StipendsPage from './pages/StipendsPage';
 
 function FullscreenSpinner() {
   return (
@@ -46,6 +49,9 @@ export default function App() {
         <Route path="/requests/:reference" element={<RequestDetailsPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/tx/:reference" element={<TransactionDetailsPage />} />
+        <Route path="/programs" element={<ProgramsPage />} />
+        <Route path="/programs/:reference" element={<ProgramDetailPage />} />
+        <Route path="/stipends" element={<StipendsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

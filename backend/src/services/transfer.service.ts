@@ -8,7 +8,7 @@ import { newTransferReference } from '../utils/reference';
 import { logger } from '../utils/logger';
 import { NotificationService } from './notification.service';
 
-export type TransferType = 'TRANSFER' | 'REQUEST_APPROVAL';
+export type TransferType = 'TRANSFER' | 'REQUEST_APPROVAL' | 'STIPEND';
 
 export interface ExecuteTransferInput {
   senderId: string;
@@ -59,6 +59,8 @@ function shape(row: TransferRow, viewerId: string) {
     reference: row.reference,
     status: row.status,
     type: row.type,
+    is_stipend: row.type === 'STIPEND',
+    fee_bdt: '0.00',
     direction,
     sender_id: row.sender_id,
     receiver_id: row.receiver_id,
@@ -237,13 +239,25 @@ export const TransferService = {
         type,
       });
 
-      NotificationService.emit({
-        userId: input.receiverId,
-        type: 'TRANSFER_RECEIVED',
-        title: 'Money received',
-        message: `Received ${formatBdt(amountPaisa)} from ${result.row.sender_id === input.senderId ? result.senderName : 'a user'}`,
-        relatedTransferId: result.row.id,
-      });
+      const fromName =
+        result.row.sender_id === input.senderId ? result.senderName : 'a user';
+      NotificationService.emit(
+        type === 'STIPEND'
+          ? {
+              userId: input.receiverId,
+              type: 'STIPEND_RECEIVED',
+              title: 'Stipend received',
+              message: `${formatBdt(amountPaisa)} stipend credited by ${fromName} — no cash-out fee`,
+              relatedTransferId: result.row.id,
+            }
+          : {
+              userId: input.receiverId,
+              type: 'TRANSFER_RECEIVED',
+              title: 'Money received',
+              message: `Received ${formatBdt(amountPaisa)} from ${fromName}`,
+              relatedTransferId: result.row.id,
+            }
+      );
 
       return shape(result.row, input.senderId);
     } catch (err: any) {
@@ -273,6 +287,14 @@ export const TransferService = {
       }
       throw err;
     }
+  },
+
+  /** Cheap lookup of an already-executed transfer by its (sender, key) pair. */
+  async getByIdempotencyKey(senderId: string, key: string) {
+    const row = await findByIdempotencyKey(senderId, key);
+    return row
+      ? { transfer_id: row.id, reference: row.reference, status: row.status }
+      : null;
   },
 
   async getForUser(idOrReference: string, userId: string) {

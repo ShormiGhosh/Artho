@@ -8,7 +8,8 @@ type NotificationType =
   | 'REQUEST_APPROVED'
   | 'REQUEST_REJECTED'
   | 'REQUEST_CANCELLED'
-  | 'REQUEST_EXPIRED';
+  | 'REQUEST_EXPIRED'
+  | 'STIPEND_RECEIVED';
 
 interface CreateNotificationInput {
   userId: string;

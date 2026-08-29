@@ -5,18 +5,28 @@ import { api } from '../lib/api';
 import { formatBdt, relativeTime } from '../lib/format';
 import type { Notification } from '../types';
 
-const NAV = [
+type NavItem = { to: string; label: string; end?: boolean };
+
+const BASE_NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/send', label: 'Send' },
   { to: '/request', label: 'Request' },
   { to: '/requests', label: 'Requests' },
   { to: '/history', label: 'History' },
-  { to: '/profile', label: 'Profile' },
 ];
+
+function navFor(role: string | undefined): NavItem[] {
+  const middle: NavItem =
+    role === 'INSTITUTION'
+      ? { to: '/programs', label: 'Programmes' }
+      : { to: '/stipends', label: 'Stipends' };
+  return [...BASE_NAV, middle, { to: '/profile', label: 'Profile' }];
+}
 
 export default function Layout() {
   const { me, logout } = useAuth();
   const navigate = useNavigate();
+  const NAV = navFor(me?.role);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);

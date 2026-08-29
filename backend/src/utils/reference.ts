@@ -26,6 +26,16 @@ export function newRequestReference(): string {
   return `REQ-${today()}-${randomChunk(8)}`;
 }
 
+/** Stipend / scholarship / grant programme reference: PRG-20260829-9F3A1C7B */
+export function newStipendProgramReference(): string {
+  return `PRG-${today()}-${randomChunk(8)}`;
+}
+
+/** Disbursement (payout run) reference: DSB-20260829-9F3A1C7B */
+export function newDisbursementReference(): string {
+  return `DSB-${today()}-${randomChunk(8)}`;
+}
+
 /** Server-side idempotency key for internally-triggered transfers. */
 export function newInternalIdempotencyKey(prefix: string): string {
   return `req-${prefix}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;

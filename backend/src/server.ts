@@ -4,6 +4,7 @@ import { closePool, verifyConnection } from './config/database';
 import { runMigrations } from './database/migrate';
 import { checkInvariants } from './services/invariant.service';
 import { RequestService } from './services/request.service';
+import { StipendService } from './services/stipend.service';
 import { logger } from './utils/logger';
 
 async function main() {
@@ -16,12 +17,18 @@ async function main() {
     process.exit(1);
   }
 
-  // Best-effort periodic expiry of stale money requests.
-  await RequestService.expireStale().catch((e) => logger.error('expiry sweep failed', e));
-  const sweep = setInterval(
-    () => void RequestService.expireStale().catch((e) => logger.error('expiry sweep failed', e)),
-    60_000
+  // Finish any disbursement interrupted by a crash, then keep sweeping for
+  // stalled batches and expiring stale money requests.
+  await StipendService.resumeStuckDisbursements().catch((e) =>
+    logger.error('disbursement resume failed', e)
   );
+  await RequestService.expireStale().catch((e) => logger.error('expiry sweep failed', e));
+  const sweep = setInterval(() => {
+    void RequestService.expireStale().catch((e) => logger.error('expiry sweep failed', e));
+    void StipendService.resumeStuckDisbursements().catch((e) =>
+      logger.error('disbursement resume failed', e)
+    );
+  }, 60_000);
   sweep.unref();
 
   const app = createApp();

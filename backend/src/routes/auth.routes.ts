@@ -7,6 +7,7 @@ import {
   changePasswordSchema,
   loginSchema,
   registerSchema,
+  updateProfileSchema,
 } from '../middleware/schemas';
 import { asyncHandler, ok } from '../utils/asyncHandler';
 
@@ -46,6 +47,15 @@ router.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     ok(res, await AuthService.profile(req.userId!));
+  })
+);
+
+router.patch(
+  '/me',
+  requireAuth,
+  validate(updateProfileSchema),
+  asyncHandler(async (req, res) => {
+    ok(res, await AuthService.updateProfile(req.userId!, req.body));
   })
 );
 

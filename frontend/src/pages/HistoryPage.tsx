@@ -191,12 +191,18 @@ export default function HistoryPage() {
               onClick={() => navigate(itemPath(it))}
               className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
-                {it.kind === 'REQUEST' ? 'REQ' : it.direction === 'SENT' ? '↑' : '↓'}
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  it.is_stipend
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {it.is_stipend ? '৳' : it.kind === 'REQUEST' ? 'REQ' : it.direction === 'SENT' ? '↑' : '↓'}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-slate-800">
-                  {it.kind === 'REQUEST' ? 'Request' : 'Transfer'} ·{' '}
+                  {it.is_stipend ? 'Stipend' : it.kind === 'REQUEST' ? 'Request' : 'Transfer'} ·{' '}
                   {it.direction === 'SENT' ? 'to' : 'from'} {it.counterparty_name}
                 </span>
                 <span className="block text-xs text-slate-400">

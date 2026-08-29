@@ -34,12 +34,21 @@ export const HistoryService = {
       );
       for (const row of rows) {
         const direction = row.sender_id === userId ? 'SENT' : 'RECEIVED';
+        const badge =
+          row.type === 'STIPEND'
+            ? direction === 'SENT'
+              ? 'STIPEND_SENT'
+              : 'STIPEND_RECEIVED'
+            : direction === 'SENT'
+              ? 'SENT'
+              : 'RECEIVED';
         items.push({
           kind: 'TRANSFER',
           id: row.id,
           reference: row.reference,
           direction,
-          badge: direction === 'SENT' ? 'SENT' : 'RECEIVED',
+          badge,
+          is_stipend: row.type === 'STIPEND',
           counterparty_name: direction === 'SENT' ? row.receiver_name : row.sender_name,
           amount_paisa: row.amount_paisa.toString(),
           amount_bdt: paisaToBdtString(row.amount_paisa),
